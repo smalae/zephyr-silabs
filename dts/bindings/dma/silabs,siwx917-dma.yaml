@@ -1,0 +1,21 @@
+description: Silabs SiWx917 DMA node
+
+compatible: "silabs,siwx917-dma"
+
+include: dma-controller.yaml
+
+properties:
+  reg:
+    required: true
+
+  sram-desc-addr:
+    type: int
+    required: true
+    description: SRAM address where UDMA descriptor is stored
+
+  "#dma-cells":
+    const: 1
+
+# Parameter syntax
+dma-cells:
+  - channel
