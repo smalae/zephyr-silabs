@@ -405,7 +405,8 @@ static void dma_siwx917_isr(const struct device *dev)
 		(RSI_UDMA_DESC_T *)cfg->reg->CTRL_BASE_PTR /* SRAM base address */
 	};
 
-	/* Disable IRQ */
+	/* Disable the IRQ to prevent the ISR from being triggered by */
+	/* interrupts from other DMA channels */
 	irq_disable(irq_number);
 	int_status = cfg->reg->UDMA_DONE_STATUS_REG; /* Read the interrupt status */
 	/* Identify the interrupt channel */
@@ -443,7 +444,7 @@ static void dma_siwx917_isr(const struct device *dev)
 			cfg->reg->CHNL_SW_REQUEST |= (1U << channel);
 		}
 	}
-	/* Enable IRQ */
+	/* Enable the IRQ to restore interrupt functionality for other DMA channels */
 	irq_enable(irq_number);
 }
 
