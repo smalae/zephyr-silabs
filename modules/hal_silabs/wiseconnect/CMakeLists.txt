@@ -35,6 +35,7 @@ zephyr_compile_definitions(
   SLI_SI917
   SLI_SI917B0
   CLOCK_ROMDRIVER_PRESENT
+  ULPSS_CLOCK_ROMDRIVER_PRESENT
 )
 
 zephyr_compile_definitions_ifdef(CONFIG_SIWX917_FLASH_MODE_COMMON
@@ -49,6 +50,9 @@ zephyr_library_sources(
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/systemlevel/src/rsi_ulpss_clk.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/service/clock_manager/src/sl_si91x_clock_manager.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_api/src/sl_si91x_driver_gpio.c
+  ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_api/src/sl_si91x_ulp_timer.c
+  ${DEVICE_DIR}/silabs/si91x/mcu/drivers/peripheral_drivers/src/rsi_timers.c
+  ${DEVICE_DIR}/silabs/si91x/mcu/drivers/peripheral_drivers/src/clock_update.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_peripheral_drivers/src/sl_si91x_peripheral_gpio.c
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/iPMU_prog/iPMU_dotc/ipmu_apis.c
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/iPMU_prog/iPMU_dotc/rsi_system_config_917.c

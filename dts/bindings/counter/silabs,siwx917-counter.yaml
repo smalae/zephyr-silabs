@@ -1,0 +1,12 @@
+description: siwg917 counters
+
+compatible: "silabs,siwx917-counter"
+
+include: base.yaml
+
+properties:
+  frequency:
+    type: int
+    required: true
+    description: |
+        Timer module clock source frequency

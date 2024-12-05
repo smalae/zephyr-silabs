@@ -48,6 +48,9 @@ int silabs_siwx917_init(void)
 	RSI_PS_UlpssPeriPowerUp(ULPSS_PWRGATE_ULP_I2C);
 	RSI_ULPSS_PeripheralEnable(ULPCLK, ULP_I2C_CLK, ENABLE_STATIC_CLK);
 #endif
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(ulptimer), okay)
+	RSI_ULPSS_TimerClkConfig(ULPCLK, 1, 0, 4, 0);
+#endif
 
 	return 0;
 }

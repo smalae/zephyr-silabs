@@ -1,0 +1,14 @@
+# Copyright (c) 2024 Silicon Laboratories Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig COUNTER_SILABS_SIWX917
+	bool "Silabs SiWx917 Counter driver"
+	default y
+	depends on DT_HAS_SILABS_SIWX917_COUNTER_ENABLED
+	help
+	  Enable the Counter driver for Siwx917
+
+config COUNTER_SILABS_SIWX917_COMMON_INIT_PRIORITY
+	int "Common initialization priority"
+	depends on COUNTER_SILABS_SIWX917
+	default 42

@@ -221,6 +221,18 @@
 			compatible = "silabs,siwx917-rng";
 			reg = <0x45090000 0x8>;
 		};
+		
+		ulptimer: ulp_timer@24042000 {
+			compatible = "silabs,siwx917-counter";
+			reg = <0x24042000 0xA0>;
+			interrupts = <2 0>, <3 0>, <4 0>, <5 0>;
+			interrupt-names = "TIMER0", "TIMER1", "TIMER2", "TIMER3";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			frequency = <32000000>;
+			status = "okay";
+
+		};
 	};
 };
 
