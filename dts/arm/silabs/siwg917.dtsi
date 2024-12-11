@@ -11,6 +11,8 @@
 / {
 	chosen {
 		zephyr,entropy = &rng0;
+		zephyr,flash = &flash0;
+		zephyr,flash-controller = &flashctrl0;
 	};
 
 	cpus {
@@ -33,11 +35,6 @@
 		status = "disabled";
 	};
 
-	flash0: flash@8202000 {
-		compatible = "soc-nv-flash";
-		reg = <0x8202000 DT_SIZE_K(2040)>;
-	};
-
 	wifi0: wifi {
 		compatible = "silabs,siwx917-wifi";
 		status = "disabled";
@@ -47,6 +44,19 @@
 		pinctrl0: pinctrl@46130000 {
 			compatible = "silabs,siwx917-pinctrl";
 			reg = <0x46130000 0x1000>;
+		};
+
+		flashctrl0: flash-controller@12000000 {
+			compatible = "silabs,siwx917-flash-controller";
+			reg = <0x12000000 0x200>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			flash0: flash@8202000 {
+				compatible = "soc-nv-flash";
+				write-block-size = <1>;
+				erase-block-size = <4096>;
+			};
 		};
 
 		ulpuart0: uart@24041800 {
@@ -219,7 +229,7 @@
 			reg = <0x44030000 0x82C>;
 			interrupts = <33 0>;
 			interrupt-names = "udma0";
-			sram-desc-addr = <0x2fc00>;
+			silabs,sram-desc-addr = <0x2fc00>;
 			#dma-cells = < 1>;
 			dma-channels = <32>;
 			status = "disabled";
@@ -232,7 +242,7 @@
 			reg = <0x24078000 0x82C>;
 			interrupts = <10 0>;
 			interrupt-names = "udma1";
-			sram-desc-addr = <0x24061c00>;
+			silabs,sram-desc-addr = <0x24061c00>;
 			#dma-cells = < 1>;
 			dma-channels = <12>;
 			status = "disabled";
