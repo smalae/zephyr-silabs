@@ -1,0 +1,22 @@
+description: Silabs SiWx917 Watchdog node
+
+compatible: "silabs,siwx917-watchdog"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  silabs,fsm-clock:
+    type: int
+    description: FSM clock source id
+    required: true
+    
+  silabs,bg-pmu-clock:
+    type: int
+    description: BG-PMU clock source id
+    required: true
