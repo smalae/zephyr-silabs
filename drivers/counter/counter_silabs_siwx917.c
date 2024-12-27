@@ -306,5 +306,5 @@ static const struct counter_siwg917_config counter_siwg917_dev_config = {
 static struct counter_siwg917_data counter_siwg917_alarm_data[COUNTER_CHANNEL_COUNT];
 
 DEVICE_DT_INST_DEFINE(0, counter_siwg917_init, NULL, &counter_siwg917_alarm_data,
-		      &counter_siwg917_dev_config, PRE_KERNEL_2, CONFIG_COUNTER_INIT_PRIORITY,
+		      &counter_siwg917_dev_config, PRE_KERNEL_1, CONFIG_COUNTER_INIT_PRIORITY,
 		      &counter_siwg917_driver_api);
