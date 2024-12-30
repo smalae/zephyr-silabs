@@ -8,7 +8,7 @@ menuconfig WATCHDOG_SILABS_SIWX917
 	help
 	  Enable the Watchdog driver for the Silabs SiWx917 SoC series.
 
-config WATCHDOG_SILABS_SIWX917_COMMON_INIT_PRIORITY
+config WDT_SIWX917_COMMON_INIT_PRIORITY
 	int "Common initialization priority"
 	depends on WATCHDOG_SILABS_SIWX917
 	default 42

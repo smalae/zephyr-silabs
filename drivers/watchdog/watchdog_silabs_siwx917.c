@@ -18,10 +18,10 @@
 #define WDT_SIWG917_MAX_RESET_SELECT_VALUE	32
 #define WDT_SIWG917_MAX_WINDOW_SELECT_VALUE	16
 
-LOG_MODULE_REGISTER(si91x_watchdog, CONFIG_WATCHDOG_LOG_LEVEL);
+LOG_MODULE_REGISTER(si91x_watchdog, CONFIG_WDT_LOG_LEVEL);
 
 struct wdt_siwg917_config {           
-	wdt_clock_config wdt_clock_cfg;
+	watchdog_timer_clock_config_t wdt_clock_cfg;
 	void (*irq_config)(void);
 };
 
@@ -53,7 +53,6 @@ static int get_regvalue_from_timeout(uint32_t timeout)
 static int wdt_siwg917_install_timeout(const struct device *dev,
 				     const struct wdt_timeout_cfg *cfg)
 {
-	const struct wdt_siwg917_config *config = dev->config;
 	struct wdt_siwg917_data *data = dev->data;
 	
 	if (!data->timeout_installed) {
@@ -100,7 +99,6 @@ static int wdt_siwg917_install_timeout(const struct device *dev,
 
 static int wdt_siwg917_setup(const struct device *dev, uint8_t options)
 {
-	const struct wdt_siwg917_config *config = dev->config;
 	struct wdt_siwg917_data *data = dev->data;
 	
 	if (!data->timeout_installed) {
@@ -112,6 +110,7 @@ static int wdt_siwg917_setup(const struct device *dev, uint8_t options)
 		sl_si91x_watchdog_set_window_time(data->wdt_config.window_time);
 	}
 	sl_si91x_watchdog_start_timer();
+	return 0;
 }
 
 static int wdt_siwg917_disable(const struct device *dev)
@@ -119,7 +118,8 @@ static int wdt_siwg917_disable(const struct device *dev)
 	struct wdt_siwg917_data *data = dev->data;
 	
 	sl_si91x_watchdog_stop_timer();
-	data->timeout_installed = false;	
+	data->timeout_installed = false;
+	return 0;	
 }
 
 static int wdt_siwg917_feed(const struct device *dev, int channel_id)
@@ -129,6 +129,7 @@ static int wdt_siwg917_feed(const struct device *dev, int channel_id)
 		return -EINVAL;
 	}
 	sl_si91x_watchdog_restart_timer();
+	return 0;
 }
 
 static void wdt_siwg917_isr(const struct device *dev)
@@ -147,10 +148,10 @@ static void wdt_siwg917_isr(const struct device *dev)
 
 static int wdt_siwg917_init(const struct device *dev)
 {
-	const struct wdt_gecko_cfg *config = dev->config;
+	const struct wdt_siwg917_config *config = dev->config;
 	
 	sl_si91x_watchdog_init_timer();
-	sl_si91x_watchdog_configure_clock(&config->wdt_clock_cfg);
+	sl_si91x_watchdog_configure_clock((watchdog_timer_clock_config_t *)&config->wdt_clock_cfg);
 	config->irq_config();
 	
 	return 0;
@@ -179,5 +180,5 @@ static const struct wdt_siwg917_config wdt_siwg917_dev_config = {
 static struct wdt_siwg917_data wdt_siwg917_data;
 
 DEVICE_DT_INST_DEFINE(0, wdt_siwg917_init, NULL, &wdt_siwg917_data,
-		      &wdt_siwg917_dev_config, PRE_KERNEL_1, CONFIG_WATCHDOG_INIT_PRIORITY,
+		      &wdt_siwg917_dev_config, PRE_KERNEL_1, CONFIG_WDT_SIWX917_COMMON_INIT_PRIORITY,
 		      &wdt_siwg917_driver_api);
