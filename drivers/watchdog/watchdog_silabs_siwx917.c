@@ -15,8 +15,8 @@
 #include "sl_status.h"
 
 #define DT_DRV_COMPAT          silabs_siwx917_watchdog
-#define WDT_SIWG917_MAX_RESET_SELECT_VALUE	32
-#define WDT_SIWG917_MAX_WINDOW_SELECT_VALUE	16
+#define WDT_SIWG917_MAX_RESET_SELECT_VALUE	31
+#define WDT_SIWG917_MAX_WINDOW_SELECT_VALUE	15
 
 LOG_MODULE_REGISTER(si91x_watchdog, CONFIG_WDT_LOG_LEVEL);
 
@@ -31,11 +31,13 @@ struct wdt_siwg917_data {
 	bool timeout_installed;
 };
 
-static int get_timeout_from_regvalue(uint8_t reg_value)
+static uint32_t get_timeout_from_regvalue(uint8_t reg_value)
 {
 	uint32_t ticks = BIT(reg_value);
+	float timeout = ((float)ticks / 32768);
+	timeout *= 1000;
 
-	return ((1000 * ticks) / 32768);//msec
+	return ((uint32_t)timeout);//msec
 }
 
 static int get_regvalue_from_timeout(uint32_t timeout)
@@ -55,11 +57,11 @@ static int wdt_siwg917_install_timeout(const struct device *dev,
 {
 	struct wdt_siwg917_data *data = dev->data;
 	
-	if (!data->timeout_installed) {
-		LOG_ERR("No valid timeouts installed");
+	if (data->timeout_installed) {
+		LOG_ERR("No more timeouts can be installed");
 		return -EINVAL;
 	}
-	if (cfg->window.max > get_timeout_from_regvalue(WDT_SIWG917_MAX_RESET_SELECT_VALUE)) {
+	if (cfg->window.max > get_timeout_from_regvalue(WDT_SIWG917_MAX_RESET_SELECT_VALUE) || cfg->window.max == 0) {
 		LOG_ERR("Upper limit reset timeout out of range");
 		return -EINVAL;
 	}
@@ -81,6 +83,7 @@ static int wdt_siwg917_install_timeout(const struct device *dev,
 		}
 		data->wdt_config.system_reset_time = get_regvalue_from_timeout(cfg->window.max);
 		data->wdt_config.interrupt_time = 0;
+		RSI_WWDT_IntrMask();
 		break;
 	case WDT_FLAG_RESET_NONE:
 		data->wdt_config.system_reset_time = WDT_SIWG917_MAX_RESET_SELECT_VALUE;
