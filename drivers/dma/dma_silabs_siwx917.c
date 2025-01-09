@@ -549,6 +549,7 @@ static void dma_siwx917_isr(const struct device *dev)
 			/* Transfer complete, call user callback */
 			data->dma_callback(dev, data->cb_data, channel, 0);
 		}
+		sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->UDMA_DONE_STATUS_REG);
 	} else {
 		/* Call UDMA ROM IRQ handler. */
 		ROMAPI_UDMA_WRAPPER_API->uDMAx_IRQHandler(&udma_resources, udma_resources.desc,
@@ -562,7 +563,6 @@ static void dma_siwx917_isr(const struct device *dev)
 		}
 	}
 out:
-	sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->UDMA_DONE_STATUS_REG);
 	/* Enable the IRQ to restore interrupt functionality for other DMA channels */
 	irq_enable(cfg->irq_number);
 }
