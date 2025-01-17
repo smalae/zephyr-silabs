@@ -9,6 +9,7 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/dma.h>
+#include <zephyr/sys/sys_io.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/bitarray.h>
@@ -115,23 +116,23 @@ static inline void siwx917_sg_release_desc(sys_bitarray_t *desc_alloc, uint32_t 
 /* Requests the index of contiguous memory for scatter-gather descriptor table */
 static int siwx917_sg_request_desc(sys_bitarray_t *desc_alloc, uint32_t block_count)
 {
-	uint32_t index;
+	uint32_t i;
 
 	/* Find contiguous free blocks */
-	for (index = 0; index <= CONFIG_DMA_SILABS_SIWX917_SG_BUFFER_COUNT - block_count; index++) {
-		if (sys_bitarray_is_region_cleared(desc_alloc, block_count, index)) {
+	for (i = 0; i <= CONFIG_DMA_SILABS_SIWX917_SG_BUFFER_COUNT - block_count; i++) {
+		if (sys_bitarray_is_region_cleared(desc_alloc, block_count, i)) {
 			break;
 		}
 	}
-	if (index > CONFIG_DMA_SILABS_SIWX917_SG_BUFFER_COUNT - block_count) {
+	if (i > CONFIG_DMA_SILABS_SIWX917_SG_BUFFER_COUNT - block_count) {
 		/* No contiguous free blocks present */
 		return -EINVAL;
 	}
 	/* Mark the blocks as allocated */
-	if (sys_bitarray_set_region(desc_alloc, block_count, index) < 0) {
+	if (sys_bitarray_set_region(desc_alloc, block_count, i) < 0) {
 		return -EINVAL;
 	}
-	return index;
+	return i;
 }
 
 /* Sets up the scatter-gather descriptor table for a DMA transfer */
@@ -140,12 +141,12 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config
 	const struct dma_block_config *block_addr = config->head_block;
 	volatile RSI_UDMA_CHA_CONFIG_DATA_T *cfg;
 
-	for (int index = 0; index < config->block_count; index++) {
-		cfg = &descs[index].vsUDMAChaConfigData1;
+	for (int i = 0; i < config->block_count; i++) {
+		cfg = &descs[i].vsUDMAChaConfigData1;
 		/* Set the source and destination end addresses */
-		descs[index].pSrcEndAddr = (uint32_t *)(block_addr->source_address +
+		descs[i].pSrcEndAddr = (uint32_t *)(block_addr->source_address +
 				     (block_addr->block_size - config->source_data_size));
-		descs[index].pDstEndAddr = (uint32_t *)(block_addr->dest_address +
+		descs[i].pDstEndAddr = (uint32_t *)(block_addr->dest_address +
 				     (block_addr->block_size - config->dest_data_size));
 		/* Set the source and destination data sizes */
 		cfg->srcSize = siwx917_data_width(config->source_data_size);
@@ -225,12 +226,13 @@ static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_ha
 	RSI_UDMA_InterruptClear(udma_handle, channel);
 	RSI_UDMA_ErrorStatusClear(udma_handle);
 	if (cfg->reg == UDMA0) {
-		M4SS_UDMA_INTR_SEL |= BIT(channel);
+		sys_write32((BIT(channel) | M4SS_UDMA_INTR_SEL), (mem_addr_t)&M4SS_UDMA_INTR_SEL);
 	} else {
-		cfg->reg->UDMA_INTR_MASK_REG |= BIT(channel);
+		sys_write32((BIT(channel) | cfg->reg->UDMA_INTR_MASK_REG),
+			    (mem_addr_t)&cfg->reg->UDMA_INTR_MASK_REG);
 	}
-	cfg->reg->CHNL_PRI_ALT_SET = BIT(channel);
-	cfg->reg->CHNL_REQ_MASK_CLR = BIT(channel);
+	sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->CHNL_PRI_ALT_SET);
+	sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->CHNL_REQ_MASK_CLR);
 	RSI_UDMA_SetChannelScatterGatherTransfer(udma_handle, channel, config->block_count,
 						 sg_desc_base_addr, transfer_type);
 	return 0;
@@ -419,7 +421,8 @@ static int siwx917_dma_start(const struct device *dev, uint32_t channel)
 	if (udma_table[channel].vsUDMAChaConfigData1.srcInc != UDMA_SRC_INC_NONE &&
 	    udma_table[channel].vsUDMAChaConfigData1.dstInc != UDMA_DST_INC_NONE) {
 		/* Apply software trigger to start transfer */
-		cfg->reg->CHNL_SW_REQUEST |= BIT(channel);
+		sys_write32((BIT(channel) | cfg->reg->CHNL_SW_REQUEST),
+			    (mem_addr_t)&cfg->reg->CHNL_SW_REQUEST);
 	}
 	return 0;
 }
@@ -453,7 +456,7 @@ static int siwx917_dma_get_status(const struct device *dev, uint32_t channel,
 		return -EINVAL;
 	}
 	/* Read the channel status register */
-	if (cfg->reg->CHANNEL_STATUS_REG & BIT(channel)) {
+	if (sys_read32((mem_addr_t)&cfg->reg->CHANNEL_STATUS_REG) & BIT(channel)) {
 		stat->busy = 1;
 	} else {
 		stat->busy = 0;
@@ -539,10 +542,15 @@ static void siwx917_dma_isr(const struct device *dev)
 		/* A Scatter-Gather transfer is completed, free the allocated descriptors */
 		siwx917_sg_release_desc(data->sg_transfer_desc_block->free_desc,
 				       data->chan_info[channel].Size, data->chan_info[channel].Cnt);
-		goto out;
+		data->chan_info[channel].Cnt = 0;
+		data->chan_info[channel].Size = 0;
 	}
 	if (data->chan_info[channel].Cnt == data->chan_info[channel].Size) {
-		goto out;
+		if (data->dma_callback) {
+			/* Transfer complete, call user callback */
+			data->dma_callback(dev, data->cb_data, channel, 0);
+		}
+		sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->UDMA_DONE_STATUS_REG);	
 	} else {
 		/* Call UDMA ROM IRQ handler. */
 		ROMAPI_UDMA_WRAPPER_API->uDMAx_IRQHandler(&udma_resources, udma_resources.desc,
@@ -551,15 +559,11 @@ static void siwx917_dma_isr(const struct device *dev)
 		if (udma_resources.desc[channel].vsUDMAChaConfigData1.srcInc != UDMA_SRC_INC_NONE &&
 		    udma_resources.desc[channel].vsUDMAChaConfigData1.dstInc != UDMA_DST_INC_NONE) {
 			/* Set the software trigger bit for starting next transfer */
-			cfg->reg->CHNL_SW_REQUEST |= BIT(channel);
+			sys_write32((BIT(channel) | cfg->reg->CHNL_SW_REQUEST),
+				    (mem_addr_t)&cfg->reg->CHNL_SW_REQUEST);
 		}
 	}
 out:
-	if (data->dma_callback) {
-		/* Transfer complete, call user callback */
-		data->dma_callback(dev, data->cb_data, channel, 0);
-	}
-	cfg->reg->UDMA_DONE_STATUS_REG = BIT(channel);
 	/* Enable the IRQ to restore interrupt functionality for other DMA channels */
 	irq_enable(cfg->irq_number);
 }
