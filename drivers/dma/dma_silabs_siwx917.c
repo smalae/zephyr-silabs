@@ -344,6 +344,8 @@ static int dma_siwx917_configure(const struct device *dev, uint32_t channel,
 		/* Configure dma channel for transfer */
 		status = dma_channel_config(dev, udma_handle, channel, config, data->chan_info);
 	}
+	data->dma_callback = config->dma_callback;
+	data->cb_data = config->user_data;
 	if (status) {
 		return status;
 	}
