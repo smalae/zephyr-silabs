@@ -31,8 +31,9 @@ LOG_MODULE_REGISTER(si91x_dma, CONFIG_DMA_LOG_LEVEL);
 struct dma_sg_descriptor_allocator {
 	/* DMA descriptors in contiguous memory */
 	RSI_UDMA_DESC_T sg_transfer_desc_table[CONFIG_DMA_SILABS_SIWX917_SG_BUFFER_COUNT];
-	/* Pointer to bitmap representing the allocation status of descriptors */
-	/* with each bit indicating the status of a single descriptor */
+	/* Pointer to bitmap representing the allocation status of descriptors
+	 * with each bit indicating the status of a single descriptor
+	 */
 	sys_bitarray_t *free_desc;
 };
 
@@ -52,8 +53,9 @@ struct dma_siwx917_data {
 	void *cb_data;               /* User callback data */
 	struct dma_sg_descriptor_allocator
 		*sg_transfer_desc_block;     /* Pointer to scatter-gather descriptors block */
-	RSI_UDMA_DATACONTEXT_T dma_rom_buff; /* Buffer to store UDMA handle */
-					     /* related information */
+	RSI_UDMA_DATACONTEXT_T dma_rom_buff; /* Buffer to store UDMA handle
+					      * related information
+					      */
 };
 
 static inline int siwx917_dma_is_peripheral_request(uint32_t dir)
@@ -221,8 +223,9 @@ static int dma_scatter_gather_config(const struct device *dev, RSI_UDMA_HANDLE_T
 	if (set_scatter_gather_desc(sg_desc_base_addr, config, &transfer_type)) {
 		return -EINVAL;
 	}
-	/* This channel information is used to distinguish scatter-gather transfers and */
-	/* free the allocated descriptors in sg_transfer_desc_block */
+	/* This channel information is used to distinguish scatter-gather transfers and
+	 * free the allocated descriptors in sg_transfer_desc_block
+	 */
 	data->chan_info[channel].SrcAddr = 0;
 	data->chan_info[channel].DestAddr = 0;
 	data->chan_info[channel].Cnt = config->block_count;
@@ -303,10 +306,11 @@ static int dma_channel_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_h
 	} else {
 		channel_control.dstInc = UDMA_DST_INC_NONE;
 	}
-	status = UDMAx_ChannelConfigure(
-		&udma_resources, (uint8_t)channel, config->head_block->source_address,
-		config->head_block->dest_address, config->head_block->block_size, channel_control,
-		&channel_config, NULL, channel_info, udma_handle);
+	status = UDMAx_ChannelConfigure(&udma_resources, (uint8_t)channel,
+					config->head_block->source_address,
+					config->head_block->dest_address,
+					config->head_block->block_size, channel_control,
+					&channel_config, NULL, channel_info, udma_handle);
 	if (status) {
 		return -EIO;
 	}
@@ -528,8 +532,9 @@ static void dma_siwx917_isr(const struct device *dev)
 	};
 	uint8_t channel;
 
-	/* Disable the IRQ to prevent the ISR from being triggered by */
-	/* interrupts from other DMA channels */
+	/* Disable the IRQ to prevent the ISR from being triggered by
+	 * interrupts from other DMA channels
+	 */
 	irq_disable(cfg->irq_number);
 	channel = find_lsb_set(cfg->reg->UDMA_DONE_STATUS_REG);
 	/* Identify the interrupt channel */
