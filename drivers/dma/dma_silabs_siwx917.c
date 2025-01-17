@@ -135,18 +135,11 @@ static int siwx917_sg_request_desc(sys_bitarray_t *desc_alloc, uint32_t block_co
 }
 
 /* Sets up the scatter-gather descriptor table for a DMA transfer */
-static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config *config,
-				   uint8_t *transfer_type)
+static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config *config)
 {
-	int peripheral_request = siwx917_is_peripheral_request(config->channel_direction);
 	const struct dma_block_config *block_addr = config->head_block;
 	volatile RSI_UDMA_CHA_CONFIG_DATA_T *cfg;
 
-	if (peripheral_request < 0) {
-		return -EINVAL;
-	} else if (peripheral_request) {
-		*transfer_type = UDMA_MODE_PER_SCATTER_GATHER;
-	}
 	for (int index = 0; index < config->block_count; index++) {
 		cfg = &descs[index].vsUDMAChaConfigData1;
 		/* Set the source and destination end addresses */
@@ -163,8 +156,9 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config
 		/* Set the total number of DMA transfers */
 		cfg->totalNumOfDMATrans = block_addr->block_size / config->source_data_size - 1;
 		/* Set the transfer type based on whether it is a peripheral request */
-		cfg->transferType = peripheral_request ? UDMA_MODE_PER_ALT_SCATTER_GATHER
-					   : UDMA_MODE_MEM_ALT_SCATTER_GATHER;
+		cfg->transferType = siwx917_is_peripheral_request(config->channel_direction)
+					    ? UDMA_MODE_PER_ALT_SCATTER_GATHER
+					    : UDMA_MODE_MEM_ALT_SCATTER_GATHER;
 		/* Set the arbitration size */
 		cfg->rPower = ARBSIZE_1;
 		if (siwx917_addr_adjustment(block_addr->source_addr_adj) < 0 ||
@@ -183,7 +177,8 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config
 	}
 	/* Set the transfer type for the last descriptor */
 	descs[config->block_count - 1].vsUDMAChaConfigData1.transferType =
-		peripheral_request ? UDMA_MODE_BASIC : UDMA_MODE_AUTO;
+		siwx917_is_peripheral_request(config->channel_direction) ? UDMA_MODE_BASIC
+									     : UDMA_MODE_AUTO;
 	return 0;
 }
 
@@ -196,7 +191,12 @@ static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_ha
 	struct dma_siwx917_data *data = dev->data;
 	RSI_UDMA_DESC_T *sg_desc_base_addr = NULL;
 	int block_alloc_start_index;
-
+	
+	if (siwx917_is_peripheral_request(config->channel_direction) == 1) {
+		transfer_type = UDMA_MODE_PER_SCATTER_GATHER;
+	} else if (siwx917_is_peripheral_request(config->channel_direction) < 0) {
+		return -EINVAL;
+	}
 	if (siwx917_data_width(config->source_data_size) < 0 ||
 	    siwx917_data_width(config->dest_data_size) < 0) {
 		return -EINVAL;
@@ -212,7 +212,7 @@ static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_ha
 	}
 	sg_desc_base_addr =
 		&data->sg_transfer_desc_block->sg_transfer_desc_table[block_alloc_start_index];
-	if (siwx917_sg_fill_desc(sg_desc_base_addr, config, &transfer_type)) {
+	if (siwx917_sg_fill_desc(sg_desc_base_addr, config)) {
 		return -EINVAL;
 	}
 	/* This channel information is used to distinguish scatter-gather transfers and
