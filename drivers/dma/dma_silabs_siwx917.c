@@ -135,11 +135,11 @@ static int siwx917_sg_request_desc(sys_bitarray_t *desc_alloc, uint32_t block_co
 }
 
 /* Sets up the scatter-gather descriptor table for a DMA transfer */
-static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], struct dma_config *config,
+static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], const struct dma_config *config,
 				   uint8_t *transfer_type)
 {
 	int peripheral_request = siwx917_is_peripheral_request(config->channel_direction);
-	struct dma_block_config *block_addr = config->head_block;
+	const struct dma_block_config *block_addr = config->head_block;
 	volatile RSI_UDMA_CHA_CONFIG_DATA_T *cfg;
 
 	if (peripheral_request < 0) {
@@ -157,13 +157,11 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], struct dma_config *conf
 		/* Set the source and destination data sizes */
 		cfg->srcSize = siwx917_data_width(config->source_data_size);
 		cfg->dstSize = siwx917_data_width(config->dest_data_size);
-		/* Calculate the number of DMA transfers required */
-		block_addr->block_size /= config->source_data_size;
-		if (block_addr->block_size > DMA_MAX_TRANSFER_COUNT) {
+		if (block_addr->block_size / config->source_data_size > DMA_MAX_TRANSFER_COUNT) {
 			return -EINVAL;
 		}
 		/* Set the total number of DMA transfers */
-		cfg->totalNumOfDMATrans = block_addr->block_size - 1;
+		cfg->totalNumOfDMATrans = block_addr->block_size / config->source_data_size - 1;
 		/* Set the transfer type based on whether it is a peripheral request */
 		cfg->transferType = peripheral_request ? UDMA_MODE_PER_ALT_SCATTER_GATHER
 					   : UDMA_MODE_MEM_ALT_SCATTER_GATHER;
