@@ -135,11 +135,12 @@ static int siwx917_sg_request_desc(sys_bitarray_t *desc_alloc, uint32_t block_co
 }
 
 /* Sets up the scatter-gather descriptor table for a DMA transfer */
-static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T *sg_desc_base_addr, struct dma_config *config,
+static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T descs[], struct dma_config *config,
 				   uint8_t *transfer_type)
 {
 	int peripheral_request = siwx917_is_peripheral_request(config->channel_direction);
 	struct dma_block_config *block_addr = config->head_block;
+	volatile RSI_UDMA_CHA_CONFIG_DATA_T *cfg;
 
 	if (peripheral_request < 0) {
 		return -EINVAL;
@@ -147,50 +148,43 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T *sg_desc_base_addr, struct dma_c
 		*transfer_type = UDMA_MODE_PER_SCATTER_GATHER;
 	}
 	for (int index = 0; index < config->block_count; index++) {
+		cfg = &descs[index].vsUDMAChaConfigData1;
 		/* Set the source and destination end addresses */
-		sg_desc_base_addr[index].pSrcEndAddr =
-			(uint32_t *)(block_addr->source_address +
+		descs[index].pSrcEndAddr = (uint32_t *)(block_addr->source_address +
 				     (block_addr->block_size - config->source_data_size));
-		sg_desc_base_addr[index].pDstEndAddr =
-			(uint32_t *)(block_addr->dest_address +
+		descs[index].pDstEndAddr = (uint32_t *)(block_addr->dest_address +
 				     (block_addr->block_size - config->dest_data_size));
 		/* Set the source and destination data sizes */
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.srcSize =
-			siwx917_data_width(config->source_data_size);
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.dstSize =
-			siwx917_data_width(config->dest_data_size);
+		cfg->srcSize = siwx917_data_width(config->source_data_size);
+		cfg->dstSize = siwx917_data_width(config->dest_data_size);
 		/* Calculate the number of DMA transfers required */
 		block_addr->block_size /= config->source_data_size;
 		if (block_addr->block_size > DMA_MAX_TRANSFER_COUNT) {
 			return -EINVAL;
 		}
 		/* Set the total number of DMA transfers */
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.totalNumOfDMATrans =
-			block_addr->block_size - 1;
+		cfg->totalNumOfDMATrans = block_addr->block_size - 1;
 		/* Set the transfer type based on whether it is a peripheral request */
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.transferType =
-			peripheral_request ? UDMA_MODE_PER_ALT_SCATTER_GATHER
+		cfg->transferType = peripheral_request ? UDMA_MODE_PER_ALT_SCATTER_GATHER
 					   : UDMA_MODE_MEM_ALT_SCATTER_GATHER;
 		/* Set the arbitration size */
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.rPower = ARBSIZE_1;
+		cfg->rPower = ARBSIZE_1;
 		if (siwx917_addr_adjustment(block_addr->source_addr_adj) < 0 ||
 		    siwx917_addr_adjustment(block_addr->dest_addr_adj) < 0) {
 			return -EINVAL;
 		}
 		/* Set source and destination address increments */
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.srcInc =
-			siwx917_addr_adjustment(block_addr->source_addr_adj)
+		cfg->srcInc = siwx917_addr_adjustment(block_addr->source_addr_adj)
 				? UDMA_SRC_INC_NONE
 				: siwx917_data_width(config->source_data_size);
-		sg_desc_base_addr[index].vsUDMAChaConfigData1.dstInc =
-			siwx917_addr_adjustment(block_addr->dest_addr_adj)
+		cfg->dstInc = siwx917_addr_adjustment(block_addr->dest_addr_adj)
 				? UDMA_DST_INC_NONE
 				: siwx917_data_width(config->dest_data_size);
 		/* Move to the next block */
 		block_addr = block_addr->next_block;
 	}
 	/* Set the transfer type for the last descriptor */
-	sg_desc_base_addr[config->block_count - 1].vsUDMAChaConfigData1.transferType =
+	descs[config->block_count - 1].vsUDMAChaConfigData1.transferType =
 		peripheral_request ? UDMA_MODE_BASIC : UDMA_MODE_AUTO;
 	return 0;
 }
