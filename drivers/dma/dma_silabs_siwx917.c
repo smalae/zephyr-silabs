@@ -11,6 +11,7 @@
 #include <zephyr/drivers/dma.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/sys_io.h>
 #include <zephyr/types.h>
 #include "rsi_rom_udma_wrapper.h"
 #include "rsi_udma.h"
@@ -269,7 +270,8 @@ static int dma_siwx917_start(const struct device *dev, uint32_t channel)
 	if (udma_table[channel].vsUDMAChaConfigData1.srcInc != UDMA_SRC_INC_NONE &&
 	    udma_table[channel].vsUDMAChaConfigData1.dstInc != UDMA_DST_INC_NONE) {
 		/* Apply software trigger to start transfer */
-		cfg->reg->CHNL_SW_REQUEST |= BIT(channel);
+		sys_write32((BIT(channel) | cfg->reg->CHNL_SW_REQUEST),
+			    (mem_addr_t)&cfg->reg->CHNL_SW_REQUEST);
 	}
 	return 0;
 }
@@ -303,7 +305,7 @@ static int dma_siwx917_get_status(const struct device *dev, uint32_t channel,
 		return -EINVAL;
 	}
 	/* Read the channel status register */
-	if (cfg->reg->CHANNEL_STATUS_REG & BIT(channel)) {
+	if (sys_read32((mem_addr_t)&cfg->reg->CHANNEL_STATUS_REG) & BIT(channel)) {
 		stat->busy = 1;
 	} else {
 		stat->busy = 0;
@@ -379,7 +381,7 @@ static void dma_siwx917_isr(const struct device *dev)
 			/* Transfer complete, call user callback */
 			data->dma_callback(dev, data->cb_data, channel, 0);
 		}
-		cfg->reg->UDMA_DONE_STATUS_REG = BIT(channel);
+		sys_write32(BIT(channel), (mem_addr_t)&cfg->reg->UDMA_DONE_STATUS_REG);
 	} else {
 		/* Call UDMA ROM IRQ handler. */
 		ROMAPI_UDMA_WRAPPER_API->uDMAx_IRQHandler(&udma_resources, udma_resources.desc,
@@ -388,7 +390,8 @@ static void dma_siwx917_isr(const struct device *dev)
 		if (udma_resources.desc[channel].vsUDMAChaConfigData1.srcInc != UDMA_SRC_INC_NONE &&
 		    udma_resources.desc[channel].vsUDMAChaConfigData1.dstInc != UDMA_DST_INC_NONE) {
 			/* Set the software trigger bit for starting next transfer */
-			cfg->reg->CHNL_SW_REQUEST |= BIT(channel);
+			sys_write32((BIT(channel) | cfg->reg->CHNL_SW_REQUEST),
+				    (mem_addr_t)&cfg->reg->CHNL_SW_REQUEST);
 		}
 	}
 out:
