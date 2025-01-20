@@ -49,7 +49,7 @@ struct dma_siwx917_data {
 					       */
 };
 
-static inline int siwx917_is_peripheral_request(uint32_t dir)
+static inline int siwx917_transfer_direction(uint32_t dir)
 {
 	if (dir == MEMORY_TO_MEMORY) {
 		return 0;
@@ -57,7 +57,7 @@ static inline int siwx917_is_peripheral_request(uint32_t dir)
 	if (dir == MEMORY_TO_PERIPHERAL || dir == PERIPHERAL_TO_MEMORY) {
 		return 1;
 	}
-	return -1;
+	return -EINVAL;
 }
 
 static inline int siwx917_data_width(uint32_t data_width)
@@ -74,13 +74,13 @@ static inline int siwx917_data_width(uint32_t data_width)
 	}
 }
 
-static inline int siwx917_burst_length(uint32_t blen)
+static inline bool siwx917_is_burst_length_valid(uint32_t blen)
 {
 	switch (blen / 8) {
 	case 1:
-		return VALID_BURST_LENGTH; /* 8-bit burst */
+		return true; /* 8-bit burst */
 	default:
-		return -EINVAL;
+		return false;
 	}
 }
 
@@ -120,9 +120,11 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T *descs, const struct dma_config 
 		/* Set the total number of DMA transfers */
 		cfg->totalNumOfDMATrans = block_addr->block_size / config->source_data_size - 1;
 		/* Set the transfer type based on whether it is a peripheral request */
-		cfg->transferType = siwx917_is_peripheral_request(config->channel_direction)
-					    ? UDMA_MODE_PER_ALT_SCATTER_GATHER
-					    : UDMA_MODE_MEM_ALT_SCATTER_GATHER;
+		if (siwx917_transfer_direction(config->channel_direction) == 1) {
+			cfg->transferType = UDMA_MODE_PER_ALT_SCATTER_GATHER;
+		} else if (siwx917_transfer_direction(config->channel_direction) == 0) {
+			cfg->transferType = UDMA_MODE_MEM_ALT_SCATTER_GATHER;
+		}
 		/* Set the arbitration size */
 		cfg->rPower = ARBSIZE_1;
 		if (siwx917_addr_adjustment(block_addr->source_addr_adj) < 0 ||
@@ -130,12 +132,16 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T *descs, const struct dma_config 
 			return -EINVAL;
 		}
 		/* Set source and destination address increments */
-		cfg->srcInc = siwx917_addr_adjustment(block_addr->source_addr_adj)
-				      ? UDMA_SRC_INC_NONE
-				      : siwx917_data_width(config->source_data_size);
-		cfg->dstInc = siwx917_addr_adjustment(block_addr->dest_addr_adj)
-				      ? UDMA_DST_INC_NONE
-				      : siwx917_data_width(config->dest_data_size);
+		if (siwx917_addr_adjustment(block_addr->source_addr_adj) == UDMA_ADDR_INC_NONE) {
+			cfg->srcInc = UDMA_SRC_INC_NONE;
+		} else if (siwx917_addr_adjustment(block_addr->source_addr_adj) == 0) {
+			cfg->srcInc = siwx917_data_width(config->source_data_size);
+		}
+		if (siwx917_addr_adjustment(block_addr->dest_addr_adj) == UDMA_ADDR_INC_NONE) {
+			cfg->dstInc = UDMA_DST_INC_NONE;
+		} else if (siwx917_addr_adjustment(block_addr->dest_addr_adj) == 0) {
+			cfg->dstInc = siwx917_data_width(config->dest_data_size);
+		}
 		/* Move to the next block */
 		block_addr = block_addr->next_block;
 	}
@@ -144,24 +150,26 @@ static int siwx917_sg_fill_desc(RSI_UDMA_DESC_T *descs, const struct dma_config 
 		return -EINVAL;
 	}
 	/* Set the transfer type for the last descriptor */
-	descs[config->block_count - 1].vsUDMAChaConfigData1.transferType =
-		siwx917_is_peripheral_request(config->channel_direction) ? UDMA_MODE_BASIC
-									     : UDMA_MODE_AUTO;
+	if (siwx917_transfer_direction(config->channel_direction) == 1) {
+		descs[config->block_count - 1].vsUDMAChaConfigData1.transferType = UDMA_MODE_BASIC;
+	} else if (siwx917_transfer_direction(config->channel_direction) == 0) {
+		descs[config->block_count - 1].vsUDMAChaConfigData1.transferType = UDMA_MODE_AUTO;
+	}
 	return 0;
 }
 
 /* Configure DMA for scatter-gather transfer */
-static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_handle, uint32_t channel,
-			 const struct dma_config *config)
+static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_handle,
+			     uint32_t channel, const struct dma_config *config)
 {
 	uint8_t transfer_type = UDMA_MODE_MEM_SCATTER_GATHER;
 	const struct dma_siwx917_config *cfg = dev->config;
 	struct dma_siwx917_data *data = dev->data;
 	RSI_UDMA_DESC_T *sg_desc_base_addr = NULL;
 
-	if (siwx917_is_peripheral_request(config->channel_direction) == 1) {
+	if (siwx917_transfer_direction(config->channel_direction) == 1) {
 		transfer_type = UDMA_MODE_PER_SCATTER_GATHER;
-	} else if (siwx917_is_peripheral_request(config->channel_direction) < 0) {
+	} else if (siwx917_transfer_direction(config->channel_direction) < 0) {
 		return -EINVAL;
 	}
 	if (siwx917_data_width(config->source_data_size) < 0 ||
@@ -202,8 +210,8 @@ static int siwx917_sg_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_ha
 }
 
 static int siwx917_channel_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_handle,
-			      uint32_t channel, struct dma_config *config,
-			      UDMA_Channel_Info *channel_info)
+				  uint32_t channel, struct dma_config *config,
+				  UDMA_Channel_Info *channel_info)
 {
 	const struct dma_siwx917_config *cfg = dev->config;
 	UDMA_RESOURCES udma_resources = {
@@ -219,10 +227,10 @@ static int siwx917_channel_config(const struct device *dev, RSI_UDMA_HANDLE_T ud
 	int status;
 
 	channel_config.channelPrioHigh = config->channel_priority;
-	if (siwx917_is_peripheral_request(config->channel_direction) < 0) {
+	if (siwx917_transfer_direction(config->channel_direction) < 0) {
 		return -EINVAL;
 	}
-	channel_config.periphReq = siwx917_is_peripheral_request(config->channel_direction);
+	channel_config.periphReq = siwx917_transfer_direction(config->channel_direction);
 	channel_config.dmaCh = channel;
 	if (channel_config.periphReq) {
 		/* Arbitration power for peripheral<->memory transfers */
@@ -243,8 +251,8 @@ static int siwx917_channel_config(const struct device *dev, RSI_UDMA_HANDLE_T ud
 	    siwx917_data_width(config->dest_data_size) < 0) {
 		return -EINVAL;
 	}
-	if (siwx917_burst_length(config->source_burst_length) < 0 ||
-	    siwx917_burst_length(config->dest_burst_length) < 0) {
+	if (siwx917_is_burst_length_valid(config->source_burst_length) == false ||
+	    siwx917_is_burst_length_valid(config->dest_burst_length) == false) {
 		return -EINVAL;
 	}
 	channel_control.srcSize = siwx917_data_width(config->source_data_size);
