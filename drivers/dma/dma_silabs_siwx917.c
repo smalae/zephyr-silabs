@@ -44,8 +44,9 @@ struct dma_siwx917_data {
 	dma_callback_t dma_callback;          /* User callback */
 	void *cb_data;                        /* User callback data */
 	struct sys_mem_blocks *dma_desc_pool; /* Pointer to the memory pool for DMA descriptor */
-	RSI_UDMA_DATACONTEXT_T dma_rom_buff;  /* Buffer to store UDMA handle */
-					      /* related information */
+	RSI_UDMA_DATACONTEXT_T dma_rom_buff;  /* Buffer to store UDMA handle
+					       * related information
+					       */
 };
 
 static inline int siwx917_dma_is_peripheral_request(uint32_t dir)
@@ -263,10 +264,11 @@ static int dma_channel_config(const struct device *dev, RSI_UDMA_HANDLE_T udma_h
 	} else {
 		channel_control.dstInc = UDMA_DST_INC_NONE;
 	}
-	status = UDMAx_ChannelConfigure(
-		&udma_resources, (uint8_t)channel, config->head_block->source_address,
-		config->head_block->dest_address, config->head_block->block_size, channel_control,
-		&channel_config, NULL, channel_info, udma_handle);
+	status = UDMAx_ChannelConfigure(&udma_resources, (uint8_t)channel,
+					config->head_block->source_address,
+					config->head_block->dest_address,
+					config->head_block->block_size, channel_control,
+					&channel_config, NULL, channel_info, udma_handle);
 	if (status) {
 		return -EIO;
 	}
