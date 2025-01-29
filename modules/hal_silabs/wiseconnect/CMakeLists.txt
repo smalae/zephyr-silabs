@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set(COMMON_DIR       ${ZEPHYR_HAL_SILABS_MODULE_DIR}/wiseconnect/components/common)
+set(BOARD_DIR        ${ZEPHYR_HAL_SILABS_MODULE_DIR}/wiseconnect/components/board)
 set(DEVICE_DIR       ${ZEPHYR_HAL_SILABS_MODULE_DIR}/wiseconnect/components/device)
 set(SERVICE_DIR      ${ZEPHYR_HAL_SILABS_MODULE_DIR}/wiseconnect/components/service)
 set(PROTOCOL_DIR     ${ZEPHYR_HAL_SILABS_MODULE_DIR}/wiseconnect/components/protocol)
@@ -12,6 +13,7 @@ set(SISDK_EMLIB_DIR  ${ZEPHYR_HAL_SILABS_MODULE_DIR}/simplicity_sdk/platform/eml
 zephyr_include_directories(
   ${SISDK_COMMON_DIR}/inc
   ${SISDK_COMMON_DIR}/config
+  ${BOARD_DIR}/silabs/inc
   ${DEVICE_DIR}/silabs/si91x/mcu/core/config
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/inc
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/rom_driver/inc
@@ -48,11 +50,13 @@ zephyr_library_sources(
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/rsi_deepsleep_soc.c
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/system_si91x.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/peripheral_drivers/src/clock_update.c
+  ${DEVICE_DIR}/silabs/si91x/mcu/drivers/peripheral_drivers/src/rsi_pwm.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/systemlevel/src/rsi_ipmu.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/systemlevel/src/rsi_pll.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/systemlevel/src/rsi_ulpss_clk.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/service/clock_manager/src/sl_si91x_clock_manager.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_api/src/sl_si91x_driver_gpio.c
+  ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_api/src/sl_si91x_pwm.c
   ${DEVICE_DIR}/silabs/si91x/mcu/drivers/unified_peripheral_drivers/src/sl_si91x_peripheral_gpio.c
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/iPMU_prog/iPMU_dotc/ipmu_apis.c
   ${DEVICE_DIR}/silabs/si91x/mcu/core/chip/src/iPMU_prog/iPMU_dotc/rsi_system_config_917.c

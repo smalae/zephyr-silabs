@@ -1,0 +1,49 @@
+description: |
+  Silabs Siwx917 PWM Controller
+
+  The Siwx917 PWM controller is designed to generate PWM signals. The mapping
+  between PWM channels and GPIO pins is configured through pinctrl settings.
+
+  Example pinctrl configuration for two PWM channels,
+  &pinctrl0 {
+      pwm_ch1: pwm_ch1 {
+          pinmux = <PWM_1H_PA7>, <PWM_1L_PA6>;
+      };
+      pwm_ch2: pwm_ch2 {
+          pinmux = <PWM_2H_PA9>, <PWM_2L_PA8>;
+      };
+  };
+
+  The property silabs,channel-count defines the number of PWM channels.
+  Below is an example overlay configuration,
+  &pwm {
+      silabs,channel-count = <2>;
+      pinctrl-0 = <&pwm_ch1>, <&pwm_ch2>;
+      pinctrl-names = "default";
+      pwm_channel1: pwm_channel1 {
+          pwms = <&pwm 0 1000000>;    // Channel 0, 1ms period (1000000 ns)
+      };
+      pwm_channel2: pwm_channel2 {
+          pwms = <&pwm 1 2000000>;    // Channel 1, 2ms period (2000000 ns)
+      };
+      status = "okay";
+  };
+  This configuration enables two PWM channels, with each channel's signal period specified in nanoseconds.
+
+compatible: "silabs,siwx917-pwm"
+
+include: [base.yaml, pinctrl-device.yaml, pwm-controller.yaml]
+
+properties:
+  silabs,channel-count:
+    type: int
+    required: true
+    description: |
+        Number of PWM channels configured
+
+  "#pwm-cells":
+    const: 2
+
+pwm-cells:
+  - channel
+  - period

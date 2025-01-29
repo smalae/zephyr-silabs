@@ -20,3 +20,18 @@
 		};
 	};
 };
+
+&pinctrl0 {
+    pwm0_ch1: pwm0_ch1 {
+        pinmux = <PWM_1H_PA7>, <PWM_1L_PA6>;
+    };
+    pwm0_ch2: pwm0_ch2 {
+        pinmux = <PWM_2H_PA9>, <PWM_2L_PA8>;
+    };
+};
+
+&mcpwm {
+    pinctrl-0 = <&pwm0_ch1>, <&pwm0_ch2>;
+    pinctrl-names = "default";
+    status = "okay";
+};

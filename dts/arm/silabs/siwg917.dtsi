@@ -263,6 +263,18 @@
 			dma-channels = <12>;
 			status = "disabled";
 		};
+
+		pwm: pwm@47070000 {
+			compatible = "silabs,siwx917-pwm";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x47070000 0x14C>;
+			interrupts = <48 0>;
+			interrupt-names = "pwm";
+			clocks = <&clock0 SIWX917_CLK_PWM>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
 	};
 };
 

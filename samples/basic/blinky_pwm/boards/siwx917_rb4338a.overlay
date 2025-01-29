@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2025 Silicon Laboratories Inc.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+ 
+/ {
+	aliases {
+		pwm-0 = &pwm;
+		pwm-led0 = &pwm_channel1;
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		pwm_channel1: pwm_channel1 {
+			label = "PWM LED0";
+			pwms = <&pwm 1 1000000>;
+		};
+	};
+};
+
+&pinctrl0 {
+    pwm_ch1: pwm_ch1 {
+        pinmux = <PWM_1H_PA7>;
+    };
+};
+
+&pwm {
+	silabs,channel-count = <1>;
+    	pinctrl-0 = <&pwm_ch1>;
+   	pinctrl-names = "default";	
+	status = "okay";
+};
